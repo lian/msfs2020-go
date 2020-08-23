@@ -1,5 +1,6 @@
 .env
 build-vfrmap-upload.sh
 vfrmap.exe
+vfrmap-win64.zip
 request_data.exe
 _vendor

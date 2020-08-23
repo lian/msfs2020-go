@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
 	"syscall"
 	"unsafe"
 )
@@ -22,11 +23,14 @@ var proc_SimConnect_GetNextDispatch *syscall.LazyProc
 var proc_SimConnect_RequestDataOnSimObjectType *syscall.LazyProc
 
 type SimConnect struct {
-	handle unsafe.Pointer
+	handle    unsafe.Pointer
+	DefineMap map[string]DWORD
 }
 
 func New(name string) (*SimConnect, error) {
-	s := &SimConnect{}
+	s := &SimConnect{
+		DefineMap: map[string]DWORD{"_last": 0},
+	}
 
 	if proc_SimConnect_Open == nil {
 		exePath, err := os.Executable()
@@ -79,6 +83,49 @@ func New(name string) (*SimConnect, error) {
 	}
 
 	return s, nil
+}
+
+func (s *SimConnect) GetDefineID(a interface{}) DWORD {
+	structName := reflect.TypeOf(a).Elem().Name()
+
+	id, ok := s.DefineMap[structName]
+	if !ok {
+		id = s.DefineMap["_last"]
+		s.DefineMap[structName] = id
+		s.DefineMap["_last"] = id + 1
+	}
+
+	return id
+}
+
+func (s *SimConnect) RegisterDataDefinition(a interface{}) error {
+	defineID := s.GetDefineID(a)
+
+	v := reflect.ValueOf(a).Elem()
+	for j := 1; j < v.NumField(); j++ {
+		fieldName := v.Type().Field(j).Name
+		nameTag, _ := v.Type().Field(j).Tag.Lookup("name")
+		unitTag, _ := v.Type().Field(j).Tag.Lookup("unit")
+
+		fieldType := v.Field(j).Kind().String()
+		if fieldType == "array" {
+			fieldType = fmt.Sprintf("[%d]byte", v.Field(j).Type().Len())
+		}
+
+		if nameTag == "" {
+			return fmt.Errorf("%s name tag not found", fieldName)
+		}
+
+		dataType, err := derefDataType(fieldType)
+		if err != nil {
+			return err
+		}
+
+		s.AddToDataDefinition(defineID, nameTag, unitTag, dataType)
+		//fmt.Printf("fieldName: %s  fieldType: %s  nameTag: %s unitTag: %s\n", fieldName, fieldType, nameTag, unitTag)
+	}
+
+	return nil
 }
 
 func (s *SimConnect) Close() error {

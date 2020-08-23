@@ -12,11 +12,17 @@ import (
 
 type Report struct {
 	simconnect.RecvSimobjectDataByType
-	Title     [256]byte
-	Kohlsman  float64
-	Altitude  float64
-	Latitude  float64
-	Longitude float64
+	Title     [256]byte `name:"TITLE"`
+	Kohlsman  float64   `name:"Kohlsman setting hg" unit:"inHg"`
+	Altitude  float64   `name:"Plane Altitude" unit:"feet"`
+	Latitude  float64   `name:"Plane Latitude" unit:"degrees"`
+	Longitude float64   `name:"Plane Longitude" unit:"degrees"`
+}
+
+func (r *Report) RequestData(s *simconnect.SimConnect) {
+	defineID := s.GetDefineID(r)
+	requestID := defineID
+	s.RequestDataOnSimObjectType(requestID, defineID, 0, simconnect.SIMOBJECT_TYPE_USER)
 }
 
 func main() {
@@ -26,19 +32,15 @@ func main() {
 	}
 	fmt.Println("Connected to Flight Simulator!")
 
-	defineID := simconnect.DWORD(0)
-	s.AddToDataDefinition(defineID, "Title", "", simconnect.DATATYPE_STRING256)
-	s.AddToDataDefinition(defineID, "Kohlsman setting hg", "inHg", simconnect.DATATYPE_FLOAT64)
-	s.AddToDataDefinition(defineID, "Plane Altitude", "feet", simconnect.DATATYPE_FLOAT64)
-	s.AddToDataDefinition(defineID, "Plane Latitude", "degrees", simconnect.DATATYPE_FLOAT64)
-	s.AddToDataDefinition(defineID, "Plane Longitude", "degrees", simconnect.DATATYPE_FLOAT64)
+	report := &Report{}
+	s.RegisterDataDefinition(report)
+	report.RequestData(s)
 
-	fmt.Println("SubscribeToSystemEvent")
-	eventSimStartID := simconnect.DWORD(0)
-	s.SubscribeToSystemEvent(eventSimStartID, "SimStart")
-
-	requestID := simconnect.DWORD(0)
-	s.RequestDataOnSimObjectType(requestID, defineID, 0, simconnect.SIMOBJECT_TYPE_USER)
+	/*
+		fmt.Println("SubscribeToSystemEvent")
+		eventSimStartID := simconnect.DWORD(0)
+		s.SubscribeToSystemEvent(eventSimStartID, "SimStart")
+	*/
 
 	for {
 		ppData, r1, err := s.GetNextDispatch()
@@ -70,8 +72,8 @@ func main() {
 			//spew.Dump(recvEvent)
 
 			switch recvEvent.EventID {
-			case eventSimStartID:
-				fmt.Println("SimStart Event")
+			//case eventSimStartID:
+			//	fmt.Println("SimStart Event")
 			default:
 				fmt.Println("unknown SIMCONNECT_RECV_ID_EVENT", recvEvent.EventID)
 			}
@@ -81,10 +83,10 @@ func main() {
 			fmt.Println("SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE")
 
 			switch recvData.RequestID {
-			case requestID:
-				report := *(*Report)(ppData)
+			case s.DefineMap["Report"]:
+				report := (*Report)(ppData)
 				fmt.Printf("REPORT: %s: GPS: %.6f,%.6f Altitude: %.0f\n", report.Title, report.Latitude, report.Longitude, report.Altitude)
-				s.RequestDataOnSimObjectType(requestID, defineID, 0, simconnect.SIMOBJECT_TYPE_USER)
+				report.RequestData(s)
 			}
 
 		default:

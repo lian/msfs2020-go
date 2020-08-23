@@ -22,16 +22,22 @@ import (
 
 type Report struct {
 	simconnect.RecvSimobjectDataByType
-	Title         [256]byte
-	Altitude      float64
-	Latitude      float64
-	Longitude     float64
-	Heading       float64
-	Airspeed      float64
-	VerticalSpeed float64
-	Flaps         float64
-	Trim          float64
-	RudderTrim    float64
+	Title         [256]byte `name:"TITLE"`
+	Altitude      float64   `name:"INDICATED ALTITUDE" unit:"feet"` // PLANE ALTITUDE or PLANE ALT ABOVE GROUND
+	Latitude      float64   `name:"PLANE LATITUDE" unit:"degrees"`
+	Longitude     float64   `name:"PLANE LONGITUDE" unit:"degrees"`
+	Heading       float64   `name:"PLANE HEADING DEGREES TRUE" unit:"degrees"`
+	Airspeed      float64   `name:"AIRSPEED INDICATED" unit:"knot"`
+	VerticalSpeed float64   `name:"VERTICAL SPEED" unit:"ft/min"`
+	Flaps         float64   `name:"TRAILING EDGE FLAPS LEFT ANGLE" unit:"degrees"`
+	Trim          float64   `name:"ELEVATOR TRIM PCT" unit:"percent"`
+	RudderTrim    float64   `name:"RUDDER TRIM PCT" unit:"percent"`
+}
+
+func (r *Report) RequestData(s *simconnect.SimConnect) {
+	defineID := s.GetDefineID(r)
+	requestID := defineID
+	s.RequestDataOnSimObjectType(requestID, defineID, 0, simconnect.SIMOBJECT_TYPE_USER)
 }
 
 var buildVersion string
@@ -46,7 +52,7 @@ var mapApiKey string
 func main() {
 	flag.BoolVar(&showVersion, "v", false, "version")
 	flag.BoolVar(&verbose, "verbose", false, "verbose output")
-	flag.StringVar(&httpListen, "listen", "localhost:9000", "http listen")
+	flag.StringVar(&httpListen, "listen", "0.0.0.0:9000", "http listen")
 	flag.StringVar(&mapApiKey, "api-key", "", "gmap api-key")
 	flag.Parse()
 
@@ -71,28 +77,19 @@ func main() {
 	}
 	fmt.Println("Connected to Flight Simulator!")
 
-	defineID := simconnect.DWORD(0)
-	requestID := simconnect.DWORD(0)
-	s.AddToDataDefinition(defineID, "Title", "", simconnect.DATATYPE_STRING256)
-	s.AddToDataDefinition(defineID, "INDICATED ALTITUDE", "feet", simconnect.DATATYPE_FLOAT64)
-	//s.AddToDataDefinition(defineID, "PLANE ALT ABOVE GROUND", "feet", simconnect.DATATYPE_FLOAT64)
-	//s.AddToDataDefinition(defineID, "PLANE ALTITUDE", "feet", simconnect.DATATYPE_FLOAT64)
-	s.AddToDataDefinition(defineID, "PLANE LATITUDE", "degrees", simconnect.DATATYPE_FLOAT64)
-	s.AddToDataDefinition(defineID, "PLANE LONGITUDE", "degrees", simconnect.DATATYPE_FLOAT64)
-	s.AddToDataDefinition(defineID, "PLANE HEADING DEGREES TRUE", "degrees", simconnect.DATATYPE_FLOAT64)
-	s.AddToDataDefinition(defineID, "AIRSPEED INDICATED", "knot", simconnect.DATATYPE_FLOAT64)
-	s.AddToDataDefinition(defineID, "VERTICAL SPEED", "ft/min", simconnect.DATATYPE_FLOAT64)
-	s.AddToDataDefinition(defineID, "TRAILING EDGE FLAPS LEFT ANGLE", "degrees", simconnect.DATATYPE_FLOAT64)
-	s.AddToDataDefinition(defineID, "ELEVATOR TRIM PCT", "percent", simconnect.DATATYPE_FLOAT64)
-	s.AddToDataDefinition(defineID, "RUDDER TRIM PCT", "percent", simconnect.DATATYPE_FLOAT64)
+	report := &Report{}
+	err = s.RegisterDataDefinition(report)
+	if err != nil {
+		panic(err)
+	}
+
+	report.RequestData(s)
 
 	/*
 		fmt.Println("SubscribeToSystemEvent")
 		eventSimStartID := simconnect.DWORD(0)
 		s.SubscribeToSystemEvent(eventSimStartID, "SimStart")
 	*/
-
-	s.RequestDataOnSimObjectType(requestID, defineID, 0, simconnect.SIMOBJECT_TYPE_USER)
 
 	go func() {
 		for {
@@ -136,9 +133,8 @@ func main() {
 				//fmt.Println("SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE")
 
 				switch recvData.RequestID {
-				case requestID:
-					report := *(*Report)(ppData)
-					//fmt.Printf("REPORT: %s: GPS: %.6f,%.6f Altitude: %.0f Heading: %.1f\n", report.Title, report.Latitude, report.Longitude, report.Altitude, report.Heading)
+				case s.DefineMap["Report"]:
+					report = (*Report)(ppData)
 
 					if verbose {
 						fmt.Printf("REPORT: %#v\n", report)
@@ -156,7 +152,7 @@ func main() {
 						"rudder_trim":    fmt.Sprintf("%.1f", report.RudderTrim),
 					})
 
-					s.RequestDataOnSimObjectType(requestID, defineID, 0, simconnect.SIMOBJECT_TYPE_USER)
+					report.RequestData(s)
 				}
 
 			default:
