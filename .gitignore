@@ -1,0 +1,5 @@
+.env
+build-vfrmap-upload.sh
+vfrmap.exe
+request_data.exe
+_vendor

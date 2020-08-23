@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>msfs2020-go vfrmap</title>
+    <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgo=">
+    <style type="text/css">
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        display: flex;
+        flex-direction: column;
+      }
+
+      #map {
+        background-color: gray;
+        flex-grow: 1;
+      }
+
+      #load-map {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        z-index: 14;
+        padding: 0.5em;
+        color: black;
+        background-color: red;
+        font-size: 2em;
+        font-weight: bold;
+      }
+
+      #hud {
+        padding: 1em;
+        text-align: center;
+        color: white;
+        font-size: 1.5em;
+        background-color: black;
+      }
+
+      #hud span.value {
+        padding-right: 0.5em;
+        font-size: 2.0em;
+      }
+    </style>
+    <script>
+      "use strict";
+
+      let map;
+      let marker;
+      let markerIcon;
+      let ws;
+
+      let autoCenter = true;
+      document.onkeyup = function(event) {
+         if (event.key === "Escape"){
+           autoCenter = true;
+         }
+      }
+
+      function updateMap(msg) {
+          if (markerIcon.rotation != msg.heading) {
+            markerIcon.rotation = msg.heading;
+            marker.setIcon(markerIcon);
+          }
+
+          var pos = new google.maps.LatLng({ lat: msg.latitude, lng: msg.longitude });
+          marker.setPosition(pos);
+
+          if (autoCenter) {
+            //map.setCenter(pos);
+            map.panTo(pos);
+          }
+      }
+      
+      function updateHUD(msg) {
+        var el = document.getElementById("altitude_value");
+        el.innerText = msg.altitude;
+
+        el = document.getElementById("heading_value");
+        el.innerText = msg.heading;
+
+        el = document.getElementById("airspeed_value");
+        el.innerText = msg.airspeed;
+
+        el = document.getElementById("vertical_speed_value");
+        el.innerText = msg.vertical_speed;
+
+        el = document.getElementById("flaps_value");
+        el.innerText = msg.flaps;
+
+        el = document.getElementById("trim_value");
+        el.innerText = msg.trim;
+
+        el = document.getElementById("rudder_trim_value");
+        el.innerText = msg.rudder_trim;
+      }
+
+      ws = new WebSocket("ws://" + window.location.hostname + ":" + window.location.port + "/ws");
+      ws.onopen = function() {
+        //console.log("ws open");
+      };
+      ws.onclose = function() {
+        //console.log("ws close");
+      };
+      ws.onmessage = function(e) {
+        var msg = JSON.parse(e.data);
+        //console.log("ws data", msg);
+
+        updateHUD(msg);
+
+        if (map !== undefined) {
+          updateMap(msg);
+        }
+      };
+
+      function initMap() {
+        var pos = new google.maps.LatLng({ lat: 0, lng: 0 });
+        map = new google.maps.Map(document.getElementById("map"), { center: pos, zoom: 14 });
+
+        google.maps.event.addListener(map, 'dragend', function() {
+          autoCenter = false;
+        });
+
+        markerIcon = { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 8, rotation: 0 };
+        marker = new google.maps.Marker({ map: map, position: pos, icon: markerIcon });
+        marker.addListener("click", () => {
+          autoCenter = true;
+        });
+      }
+
+      function loadMap() {
+        var s = document.createElement("script");
+        s.setAttribute("src", "https://maps.googleapis.com/maps/api/js?key={{API_KEY}}&callback=initMap&libraries=&v=weekly");
+        document.body.appendChild(s);
+        var div = document.getElementById("load-map");
+        div.parentNode.removeChild(div);
+      }
+    </script>
+  </head>
+  <body>
+    <div id="hud" class="inner-div">
+      <span>Airspeed: <span id="airspeed_value" class="value">0</span></span>
+      <span>Altitude: <span id="altitude_value" class="value">0</span></span>
+      <span>Heading: <span id="heading_value" class="value">0</span></span>
+      <span>V.Speed: <span id="vertical_speed_value" class="value">0</span></span>
+      <span>Flaps: <span id="flaps_value" class="value">0</span></span>
+      <span>Trim: <span id="trim_value" class="value">0</span></span>
+      <span>R.Trim: <span id="rudder_trim_value" class="value">0</span></span>
+    </div>
+    <div id="map"></div>
+    <div onclick="loadMap();" id="load-map">load map</div>
+  </body>
+</html>
