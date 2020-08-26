@@ -126,13 +126,66 @@
       };
 
       function initMap() {
-        var pos = L.latLng(0, 0);
-        map = L.map('map').setView(pos, 12);
-				L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-					maxZoom: 19,
-					attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-          renderer: L.canvas(),
-				}).addTo(map);
+        var pos = L.latLng(52.4727,-1.7523);
+
+        var osm = new L.TileLayer("http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 18,
+          minZoom: 2,
+          format: "image/png",
+          subdomains: ["a", "b", "c"]
+        });
+        var openaip_cached_basemap = new L.TileLayer("http://{s}.tile.maps.openaip.net/geowebcache/service/tms/1.0.0/openaip_basemap@EPSG%3A900913@png/{z}/{x}/{y}.png", {
+          maxZoom: 14,
+          minZoom: 4,
+          tms: true,
+          detectRetina: true,
+          subdomains: "12",
+          format: "image/png",
+          transparent: true
+        });
+        var stamen_black_white = new L.TileLayer("http://{s}.tile.stamen.com/toner/{z}/{x}/{y}.png", {
+          maxZoom: 18,
+          minZoom: 2,
+          format: "image/png",
+          subdomains: ["a", "b", "c"]
+        });
+        var stamen_terrain = new L.TileLayer("http://{s}.tile.stamen.com/terrain/{z}/{x}/{y}.png", {
+          maxZoom: 18,
+          minZoom: 2,
+          format: "image/png",
+          subdomains: ["a", "b", "c"]
+        });
+        var stamen_water = new L.TileLayer("http://{s}.tile.stamen.com/watercolor/{z}/{x}/{y}.png", {
+          maxZoom: 18,
+          minZoom: 2,
+          format: "image/png",
+          subdomains: ["a", "b", "c"]
+        });
+
+        var map = new L.Map("map", {
+          layers: [ osm ],
+          center: pos,
+          zoom: 10,
+          attributionControl: false
+        });
+
+        var attrib = L.control.attribution({position: "bottomleft"});
+        attrib.addAttribution("<a href=\"https://www.openaip.net\" target=\"_blank\" style=\"\">openAIP</a>");
+        attrib.addAttribution("<a href=\"http://maps.stamen.com\" target=\"_blank\" style=\"\">Stamen</a>");
+        attrib.addAttribution("<a href=\"https://www.openstreetmap.org/copyright\" target=\"_blank\" style=\"\">© OpenStreetMap</a> contributors");
+        attrib.addTo(map);
+
+        var baseMaps = {
+            "OpenStreetMap": osm,
+            "Stamen Terrain": stamen_terrain,
+            "Stamen Toner": stamen_black_white,
+            "Stamen Water": stamen_water,
+        };
+     
+        var overlayMaps = {
+            "Navigational Data": openaip_cached_basemap,
+        };
+        L.control.layers(baseMaps, overlayMaps).addTo(map);
 
         markerIcon = L.icon({
           iconUrl: "leafletjs/images/plane.png",
@@ -146,10 +199,11 @@
         marker.addTo(map);
         marker.bindPopup(L.popup({autoPan: false}).setLatLng(pos).setContent(plane_popup.main));
 
-        markerTeleport = L.marker(pos, {});
+        var markerPos = L.latLng(0,0);
+        markerTeleport = L.marker(markerPos, {});
         markerTeleport.addTo(map);
         markerTeleport.bindPopup(L.popup({autoPan: false}).setContent(teleport_popup.main));
-        set_teleport_marker(pos);
+        set_teleport_marker(markerPos);
 
         map.on('click', function(e) {
           set_teleport_marker(e.latlng);
@@ -187,7 +241,7 @@
         follow_plane = !follow_plane;
       }
 
-			document.addEventListener("DOMContentLoaded", function(event) {
+      document.addEventListener("DOMContentLoaded", function(event) {
         plane_popup = {
           main: document.getElementById("plane-popup"),
           pos: document.getElementById("plane-popup-pos"),
@@ -211,8 +265,8 @@
         };
 
         toggle_follow();
-				initMap();
-			});
+        initMap();
+      });
     </script>
   </head>
   <body>
