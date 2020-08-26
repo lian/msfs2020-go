@@ -33,7 +33,7 @@ if you want to change how the webpage looks then copy and change [index.html](ht
 
 ## openstreetmap
 
-earlier versions of this app used google maps directly, but this was to expensive. openstreetmap is free to use and very good as well.
+earlier versions of this app used google maps directly, but this was too expensive. openstreetmap is free to use and very good as well.
 
 ## compile
 
