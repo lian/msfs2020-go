@@ -3,6 +3,7 @@ set -e
 
 go generate github.com/lian/msfs2020-go/simconnect
 go generate github.com/lian/msfs2020-go/vfrmap
+go generate github.com/lian/msfs2020-go/vfrmap/html/leafletjs
 
 build_time=$(date -u +'%Y-%m-%d_%T')
 set +e

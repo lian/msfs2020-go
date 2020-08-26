@@ -14,7 +14,7 @@ program zips are uploaded [here](https://github.com/lian/msfs2020-go/releases)
 
 ## tools
 
-* [vfrmap](vfrmap/) web server that shows your current MSFS2020 plane position in google maps inside the browser
+* [vfrmap](vfrmap/) local web-server that will allow you to view your location, and some information about your trajectory including airspeed and altitude.
 
 ## examples
 

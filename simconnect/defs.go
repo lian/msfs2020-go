@@ -9,6 +9,7 @@ const E_FAIL uint32 = 0x80004005
 type DWORD uint32
 
 const UNUSED DWORD = 0xffffffff // special value to indicate unused event, ID
+const OBJECT_ID_USER DWORD = 0  // proxy value for User vehicle ObjectID
 
 const (
 	DATATYPE_INVALID      DWORD = iota // invalid data type

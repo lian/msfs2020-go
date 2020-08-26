@@ -5,18 +5,19 @@ package main
 // build: GOOS=windows GOARCH=amd64 go build -o vfrmap.exe github.com/lian/msfs2020-go/vfrmap
 
 import (
-	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
 	"time"
+	"unsafe"
 
 	"github.com/lian/msfs2020-go/simconnect"
+	"github.com/lian/msfs2020-go/vfrmap/html/leafletjs"
 	"github.com/lian/msfs2020-go/vfrmap/websockets"
 )
 
@@ -40,29 +41,42 @@ func (r *Report) RequestData(s *simconnect.SimConnect) {
 	s.RequestDataOnSimObjectType(requestID, defineID, 0, simconnect.SIMOBJECT_TYPE_USER)
 }
 
+type TeleportRequest struct {
+	simconnect.RecvSimobjectDataByType
+	Latitude  float64 `name:"PLANE LATITUDE" unit:"degrees"`
+	Longitude float64 `name:"PLANE LONGITUDE" unit:"degrees"`
+	Altitude  float64 `name:"PLANE ALTITUDE" unit:"feet"`
+}
+
+func (r *TeleportRequest) SetData(s *simconnect.SimConnect) {
+	defineID := s.GetDefineID(r)
+
+	buf := [3]float64{
+		r.Latitude,
+		r.Longitude,
+		r.Altitude,
+	}
+
+	size := simconnect.DWORD(3 * 8) // 2 * 8 bytes
+	s.SetDataOnSimObject(defineID, simconnect.OBJECT_ID_USER, 0, 0, size, unsafe.Pointer(&buf[0]))
+}
+
 var buildVersion string
 var buildTime string
 
 var showVersion bool
 var verbose bool
 var httpListen string
-var mapApiKeyDefault string
-var mapApiKey string
 
 func main() {
 	flag.BoolVar(&showVersion, "v", false, "version")
 	flag.BoolVar(&verbose, "verbose", false, "verbose output")
 	flag.StringVar(&httpListen, "listen", "0.0.0.0:9000", "http listen")
-	flag.StringVar(&mapApiKey, "api-key", "", "gmap api-key")
 	flag.Parse()
 
 	if showVersion {
 		fmt.Printf("version: %s (%s)\n", buildVersion, buildTime)
 		return
-	}
-
-	if mapApiKey == "" {
-		mapApiKey = mapApiKeyDefault
 	}
 
 	exitSignal := make(chan os.Signal, 1)
@@ -84,6 +98,12 @@ func main() {
 	}
 
 	report.RequestData(s)
+
+	teleportReport := &TeleportRequest{}
+	err = s.RegisterDataDefinition(teleportReport)
+	if err != nil {
+		panic(err)
+	}
 
 	/*
 		fmt.Println("SubscribeToSystemEvent")
@@ -159,7 +179,7 @@ func main() {
 				fmt.Println("recvInfo.ID unknown", recvInfo.ID)
 			}
 
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(200 * time.Millisecond)
 		}
 	}()
 
@@ -173,20 +193,16 @@ func main() {
 
 			filePath := filepath.Join(filepath.Dir(exePath), "index.html")
 
-			var buf []byte
 			if _, err = os.Stat(filePath); os.IsNotExist(err) {
-				buf = MustAsset(filepath.Base(filePath))
+				w.Write(MustAsset(filepath.Base(filePath)))
 			} else {
 				fmt.Println("use local", filePath)
-				//http.ServeFile(w, r, filePath)
-				buf, _ = ioutil.ReadFile(filePath)
+				http.ServeFile(w, r, filePath)
 			}
-
-			buf = bytes.Replace(buf, []byte("{{API_KEY}}"), []byte(mapApiKey), -1)
-			w.Write(buf)
 		}
 
 		http.HandleFunc("/ws", ws.Serve)
+		http.Handle("/leafletjs/", http.StripPrefix("/leafletjs/", leafletjs.FS{}))
 		http.HandleFunc("/", app)
 		//http.Handle("/", http.FileServer(http.Dir(".")))
 
@@ -209,9 +225,26 @@ func main() {
 		case _ = <-ws.NewConnection:
 			// drain and skip
 
-		case _ = <-ws.ReceiveMessages:
-			// drain and skip
+		case m := <-ws.ReceiveMessages:
+			handleClientMessage(m, s)
+		}
+	}
+}
 
+func handleClientMessage(m websockets.ReceiveMessage, s *simconnect.SimConnect) {
+	var pkt map[string]interface{}
+	if err := json.Unmarshal(m.Message, &pkt); err != nil {
+		fmt.Println(err)
+	} else {
+		switch pkt["type"].(string) {
+		case "teleport":
+			//fmt.Println("teleport request", pkt)
+			r := &TeleportRequest{
+				Latitude:  pkt["lat"].(float64),
+				Longitude: pkt["lng"].(float64),
+				Altitude:  pkt["altitude"].(float64),
+			}
+			r.SetData(s)
 		}
 	}
 }

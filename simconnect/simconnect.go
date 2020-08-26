@@ -21,6 +21,7 @@ var proc_SimConnect_AddToDataDefinition *syscall.LazyProc
 var proc_SimConnect_SubscribeToSystemEvent *syscall.LazyProc
 var proc_SimConnect_GetNextDispatch *syscall.LazyProc
 var proc_SimConnect_RequestDataOnSimObjectType *syscall.LazyProc
+var proc_SimConnect_SetDataOnSimObject *syscall.LazyProc
 
 type SimConnect struct {
 	handle    unsafe.Pointer
@@ -58,6 +59,7 @@ func New(name string) (*SimConnect, error) {
 		proc_SimConnect_SubscribeToSystemEvent = mod.NewProc("SimConnect_SubscribeToSystemEvent")
 		proc_SimConnect_GetNextDispatch = mod.NewProc("SimConnect_GetNextDispatch")
 		proc_SimConnect_RequestDataOnSimObjectType = mod.NewProc("SimConnect_RequestDataOnSimObjectType")
+		proc_SimConnect_SetDataOnSimObject = mod.NewProc("SimConnect_SetDataOnSimObject")
 	}
 
 	// SimConnect_Open(
@@ -221,6 +223,39 @@ func (s *SimConnect) RequestDataOnSimObjectType(requestID, defineID, radius, sim
 		return fmt.Errorf(
 			"SimConnect_RequestDataOnSimObjectType for requestID %d defineID %d error: %d %s",
 			requestID, defineID, r1, err,
+		)
+	}
+
+	return nil
+}
+
+func (s *SimConnect) SetDataOnSimObject(defineID, simobjectType, flags, arrayCount, size DWORD, buf unsafe.Pointer) error {
+	//s.SetDataOnSimObject(defineID, simconnect.OBJECT_ID_USER, 0, 0, size, buf)
+
+	// SimConnect_SetDataOnSimObject(
+	//   HANDLE hSimConnect,
+	//   SIMCONNECT_DATA_DEFINITION_ID DefineID,
+	//   SIMCONNECT_OBJECT_ID ObjectID,
+	//   SIMCONNECT_DATA_SET_FLAG Flags,
+	//   DWORD ArrayCount,
+	//   DWORD cbUnitSize,
+	//   void * pDataSet
+	// );
+	args := []uintptr{
+		uintptr(s.handle),
+		uintptr(defineID),
+		uintptr(simobjectType),
+		uintptr(flags),
+		uintptr(arrayCount),
+		uintptr(size),
+		uintptr(buf),
+	}
+
+	r1, _, err := proc_SimConnect_SetDataOnSimObject.Call(args...)
+	if int32(r1) < 0 {
+		return fmt.Errorf(
+			"SimConnect_SetDataOnSimObject for defineID %d error: %d %s",
+			defineID, r1, err,
 		)
 	}
 

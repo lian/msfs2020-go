@@ -1,8 +1,11 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>msfs2020-go vfrmap</title>
+    <title>msfs2020-go/vfrmap</title>
     <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgo=">
+    <link rel="stylesheet" href="leafletjs/leaflet.css" />
+    <script src="leafletjs/leaflet.js"></script>
+    <script src="leafletjs/leaflet.rotatedMarker.js"></script>
     <style type="text/css">
       html, body {
         height: 100%;
@@ -44,58 +47,63 @@
         padding-right: 0.5em;
         font-size: 2.0em;
       }
+      #teleport-popup p {
+        padding:0.2em;
+        margin: 0;
+        text-align: center;
+      }
+      #teleport-popup p label {
+        padding-right: 0.2em;
+      }
     </style>
+
     <script>
       "use strict";
 
+      let hud;
       let map;
       let marker;
+      let markerTeleport;
       let markerIcon;
+      let popup;
       let ws;
+      let plane_popup;
+      let teleport_popup;
+      let follow_plane = false;
+      let last_report = {};
 
-      let autoCenter = true;
       document.onkeyup = function(event) {
          if (event.key === "Escape"){
-           autoCenter = true;
+           toggle_follow();
          }
       }
 
+      function open_in_google_maps() {
+        var url = "https://www.google.com/maps/@" + last_report.latitude + "," + last_report.longitude + "," + map.getZoom() + "z"
+        window.open(url,'_blank');
+      }
+
       function updateMap(msg) {
-          if (markerIcon.rotation != msg.heading) {
-            markerIcon.rotation = msg.heading;
-            marker.setIcon(markerIcon);
-          }
+          var pos = L.latLng(msg.latitude, msg.longitude);
+          marker.setLatLng(pos);
+          marker.setRotationAngle(msg.heading);
 
-          var pos = new google.maps.LatLng({ lat: msg.latitude, lng: msg.longitude });
-          marker.setPosition(pos);
+          plane_popup.pos.innerText = Number(pos.lat).toFixed(6) + "," + Number(pos.lng).toFixed(6);
+          //plane_popup.gmap.innerHTML = "<a href=\"https://www.google.com/maps/@" + pos.lat + "," + pos.lng + "," + map.getZoom() + "z\">google maps</a>";
 
-          if (autoCenter) {
-            //map.setCenter(pos);
+          if (follow_plane) {
             map.panTo(pos);
           }
       }
       
       function updateHUD(msg) {
-        var el = document.getElementById("altitude_value");
-        el.innerText = msg.altitude;
-
-        el = document.getElementById("heading_value");
-        el.innerText = msg.heading;
-
-        el = document.getElementById("airspeed_value");
-        el.innerText = msg.airspeed;
-
-        el = document.getElementById("vertical_speed_value");
-        el.innerText = msg.vertical_speed;
-
-        el = document.getElementById("flaps_value");
-        el.innerText = msg.flaps;
-
-        el = document.getElementById("trim_value");
-        el.innerText = msg.trim;
-
-        el = document.getElementById("rudder_trim_value");
-        el.innerText = msg.rudder_trim;
+        hud.altitude.innerText = msg.altitude;
+        hud.heading.innerText = msg.heading;
+        hud.airspeed.innerText = msg.airspeed;
+        hud.vertical_speed.innerText = msg.vertical_speed;
+        hud.flaps.innerText = msg.flaps;
+        hud.trim.innerText = msg.trim;
+        hud.rudder_trim.innerText = msg.rudder_trim;
       }
 
       ws = new WebSocket("ws://" + window.location.hostname + ":" + window.location.port + "/ws");
@@ -108,6 +116,7 @@
       ws.onmessage = function(e) {
         var msg = JSON.parse(e.data);
         //console.log("ws data", msg);
+        last_report = msg;
 
         updateHUD(msg);
 
@@ -117,31 +126,97 @@
       };
 
       function initMap() {
-        var pos = new google.maps.LatLng({ lat: 0, lng: 0 });
-        map = new google.maps.Map(document.getElementById("map"), { center: pos, zoom: 14 });
+        var pos = L.latLng(0, 0);
+        map = L.map('map').setView(pos, 12);
+				L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+					maxZoom: 19,
+					attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          renderer: L.canvas(),
+				}).addTo(map);
 
-        google.maps.event.addListener(map, 'dragend', function() {
-          autoCenter = false;
+        markerIcon = L.icon({
+          iconUrl: "leafletjs/images/plane.png",
+          iconSize: [64, 64],
         });
+        marker = L.marker(pos, {
+          icon: markerIcon,
+          rotationAngle: 0,
+          rotationOrigin: "center",
+        });
+        marker.addTo(map);
+        marker.bindPopup(L.popup({autoPan: false}).setLatLng(pos).setContent(plane_popup.main));
 
-        markerIcon = { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 8, rotation: 0 };
-        marker = new google.maps.Marker({ map: map, position: pos, icon: markerIcon });
-        marker.addListener("click", () => {
-          autoCenter = true;
+        markerTeleport = L.marker(pos, {});
+        markerTeleport.addTo(map);
+        markerTeleport.bindPopup(L.popup({autoPan: false}).setContent(teleport_popup.main));
+        set_teleport_marker(pos);
+
+        map.on('click', function(e) {
+          set_teleport_marker(e.latlng);
         });
       }
 
-      function loadMap() {
-        var s = document.createElement("script");
-        s.setAttribute("src", "https://maps.googleapis.com/maps/api/js?key={{API_KEY}}&callback=initMap&libraries=&v=weekly");
-        document.body.appendChild(s);
-        var div = document.getElementById("load-map");
-        div.parentNode.removeChild(div);
+      function set_teleport_marker(latlng) {
+        markerTeleport.setLatLng(latlng);
+        teleport_popup.gps.value = latlng.lat.toFixed(8) + "," + latlng.lng.toFixed(8);
+        if (last_report.altitude) {
+          teleport_popup.altitude.value = last_report.altitude;
+        }
       }
+
+      function teleport_here() {
+        //var pos = markerTeleport.getLatLng();
+        var msg = JSON.stringify(
+          {
+            "type": "teleport",
+            "lat": parseFloat(teleport_popup.gps.value.split(",")[0]),
+            "lng": parseFloat(teleport_popup.gps.value.split(",")[1]),
+            "altitude": parseFloat(teleport_popup.altitude.value) + 0.5,
+          }
+        );
+        console.log(msg);
+        ws.send(msg);
+      }
+
+      function toggle_follow() {
+        if (follow_plane) {
+          plane_popup.follow.innerText = "follow plane";
+        } else {
+          plane_popup.follow.innerText = "don't follow plane";
+        }
+        follow_plane = !follow_plane;
+      }
+
+			document.addEventListener("DOMContentLoaded", function(event) {
+        plane_popup = {
+          main: document.getElementById("plane-popup"),
+          pos: document.getElementById("plane-popup-pos"),
+          gmap: document.getElementById("plane-popup-gmap"),
+          follow: document.getElementById("plane-popup-follow"),
+        };
+        teleport_popup = {
+          main: document.getElementById("teleport-popup"),
+          submit: document.getElementById("teleport-popup-submit"),
+          gps: document.getElementById("teleport-popup-gps"),
+          altitude: document.getElementById("teleport-popup-altitude"),
+        };
+        hud = {
+          altitude: document.getElementById("altitude_value"),
+          heading: document.getElementById("heading_value"),
+          airspeed: document.getElementById("airspeed_value"),
+          vertical_speed: document.getElementById("vertical_speed_value"),
+          flaps: document.getElementById("flaps_value"),
+          trim: document.getElementById("trim_value"),
+          rudder_trim: document.getElementById("rudder_trim_value"),
+        };
+
+        toggle_follow();
+				initMap();
+			});
     </script>
   </head>
   <body>
-    <div id="hud" class="inner-div">
+    <div id="hud">
       <span>Airspeed: <span id="airspeed_value" class="value">0</span></span>
       <span>Altitude: <span id="altitude_value" class="value">0</span></span>
       <span>Heading: <span id="heading_value" class="value">0</span></span>
@@ -151,6 +226,20 @@
       <span>R.Trim: <span id="rudder_trim_value" class="value">0</span></span>
     </div>
     <div id="map"></div>
-    <div onclick="loadMap();" id="load-map">load map</div>
+    <div style="display:none;">
+
+      <div id="plane-popup">
+        <p><h3 id="plane-popup-pos"></h3></p>
+        <p><button id="plane-popup-gmap" onclick="open_in_google_maps();">open in google maps</button></p>
+        <p><button id="plane-popup-follow" onclick="toggle_follow();"></button></p>
+      </div>
+
+      <div id="teleport-popup">
+        <p><label for="teleport-popup-gps">GPS:</label><input type="text" id="teleport-popup-gps"></p>
+        <p><label for="teleport-popup-alt">Altitude:</label><input type="text" id="teleport-popup-altitude"></p>
+        <p><button type="button" id="teleport-popup-submit" onclick="teleport_here();">teleport</button></p>
+      </div>
+
+    </div>
   </body>
 </html>
