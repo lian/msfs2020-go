@@ -39,6 +39,12 @@ earlier versions of this app used google maps directly, but this was too expensi
 
 `GOOS=windows GOARCH=amd64 go build github.com/lian/msfs2020-go/vfrmap` or see [build-vfrmap.sh](https://github.com/lian/msfs2020-go/blob/master/build-vfrmap.sh)
 
+## Why does my virus-scanning software think this program is infected?
+
+From official golang website https://golang.org/doc/faq#virus
+
+"This is a common occurrence, especially on Windows machines, and is almost always a false positive. Commercial virus scanning programs are often confused by the structure of Go binaries, which they don't see as often as those compiled from other languages."
+
 ## screenshots
 
 ![screenshot](https://i.imgur.com/5PZyKC8.png)
