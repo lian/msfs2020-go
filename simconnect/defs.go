@@ -104,6 +104,14 @@ const (
 	SIMOBJECT_TYPE_GROUND
 )
 
+const (
+	FACILITY_LIST_TYPE_AIRPORT DWORD = iota
+	FACILITY_LIST_TYPE_WAYPOINT
+	FACILITY_LIST_TYPE_NDB
+	FACILITY_LIST_TYPE_VOR
+	FACILITY_LIST_TYPE_COUNT // invalid
+)
+
 type Recv struct {
 	Size    DWORD
 	Version DWORD
@@ -156,4 +164,34 @@ type RecvException struct {
 	SendID DWORD // see SimConnect_GetLastSentPacketID
 	//static const DWORD UNKNOWN_INDEX = DWORD_MAX;
 	Index DWORD // index of parameter that was source of error
+}
+
+type RecvFacilityList struct {
+	Recv
+	RequestID   DWORD
+	ArraySize   DWORD
+	EntryNumber DWORD // when the array of items is too big for one send, which send this is (0..dwOutOf-1)
+	OutOf       DWORD // total number of transmissions the list is chopped into
+}
+
+type RecvFacilityAirportList struct {
+	RecvFacilityList
+	List [1]DataFacilityAirport
+}
+
+type DataFacilityAirport struct {
+	Icao      [9]byte // ICAO of the object
+	Latitude  float64 // degrees
+	Longitude float64 // degrees
+	Altitude  float64 // meters
+}
+
+type RecvFacilityWaypointList struct {
+	RecvFacilityList
+	List [1]DataFacilityWaypoint
+}
+
+type DataFacilityWaypoint struct {
+	DataFacilityAirport
+	MagVar float64 // Magvar in degrees
 }

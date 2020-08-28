@@ -41,6 +41,33 @@ func (r *Report) RequestData(s *simconnect.SimConnect) {
 	s.RequestDataOnSimObjectType(requestID, defineID, 0, simconnect.SIMOBJECT_TYPE_USER)
 }
 
+type TrafficReport struct {
+	simconnect.RecvSimobjectDataByType
+	AtcID           [64]byte `name:"ATC ID"`
+	AtcFlightNumber [8]byte  `name:"ATC FLIGHT NUMBER"`
+	Altitude        float64  `name:"PLANE ALTITUDE" unit:"feet"`
+	Latitude        float64  `name:"PLANE LATITUDE" unit:"degrees"`
+	Longitude       float64  `name:"PLANE LONGITUDE" unit:"degrees"`
+	Heading         float64  `name:"PLANE HEADING DEGREES TRUE" unit:"degrees"`
+}
+
+func (r *TrafficReport) RequestData(s *simconnect.SimConnect) {
+	defineID := s.GetDefineID(r)
+	requestID := defineID
+	s.RequestDataOnSimObjectType(requestID, defineID, 0, simconnect.SIMOBJECT_TYPE_AIRCRAFT)
+}
+
+func (r *TrafficReport) Inspect() string {
+	return fmt.Sprintf(
+		"%s GPS %.6f %.6f @ %.0f feet %.0f°",
+		r.AtcID,
+		r.Latitude,
+		r.Longitude,
+		r.Altitude,
+		r.Heading,
+	)
+}
+
 type TeleportRequest struct {
 	simconnect.RecvSimobjectDataByType
 	Latitude  float64 `name:"PLANE LATITUDE" unit:"degrees"`
@@ -97,7 +124,11 @@ func main() {
 		panic(err)
 	}
 
-	report.RequestData(s)
+	trafficReport := &TrafficReport{}
+	err = s.RegisterDataDefinition(trafficReport)
+	if err != nil {
+		panic(err)
+	}
 
 	teleportReport := &TeleportRequest{}
 	err = s.RegisterDataDefinition(teleportReport)
@@ -105,83 +136,10 @@ func main() {
 		panic(err)
 	}
 
-	/*
-		fmt.Println("SubscribeToSystemEvent")
-		eventSimStartID := simconnect.DWORD(0)
-		s.SubscribeToSystemEvent(eventSimStartID, "SimStart")
-	*/
-
-	go func() {
-		for {
-			ppData, r1, err := s.GetNextDispatch()
-
-			if r1 < 0 {
-				if uint32(r1) == simconnect.E_FAIL {
-					// skip error, means no new messages?
-					continue
-				} else {
-					panic(fmt.Errorf("GetNextDispatch error: %d %s", r1, err))
-				}
-			}
-
-			recvInfo := *(*simconnect.Recv)(ppData)
-			//fmt.Println(ppData, pcbData, recvInfo)
-
-			switch recvInfo.ID {
-			case simconnect.RECV_ID_EXCEPTION:
-				recvErr := *(*simconnect.RecvException)(ppData)
-				fmt.Printf("SIMCONNECT_RECV_ID_EXCEPTION %#v\n", recvErr)
-
-			case simconnect.RECV_ID_OPEN:
-				recvOpen := *(*simconnect.RecvOpen)(ppData)
-				fmt.Println("SIMCONNECT_RECV_ID_OPEN", fmt.Sprintf("%s", recvOpen.ApplicationName))
-				//spew.Dump(recvOpen)
-			case simconnect.RECV_ID_EVENT:
-				recvEvent := *(*simconnect.RecvEvent)(ppData)
-				fmt.Println("SIMCONNECT_RECV_ID_EVENT")
-				//spew.Dump(recvEvent)
-
-				switch recvEvent.EventID {
-				//case eventSimStartID:
-				//	s.RequestDataOnSimObjectType(requestID, defineID, 0, simconnect.SIMOBJECT_TYPE_USER)
-				default:
-					fmt.Println("unknown SIMCONNECT_RECV_ID_EVENT", recvEvent.EventID)
-				}
-
-			case simconnect.RECV_ID_SIMOBJECT_DATA_BYTYPE:
-				recvData := *(*simconnect.RecvSimobjectDataByType)(ppData)
-				//fmt.Println("SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE")
-
-				switch recvData.RequestID {
-				case s.DefineMap["Report"]:
-					report = (*Report)(ppData)
-
-					if verbose {
-						fmt.Printf("REPORT: %#v\n", report)
-					}
-
-					ws.Broadcast(map[string]interface{}{
-						"latitude":       report.Latitude,
-						"longitude":      report.Longitude,
-						"altitude":       fmt.Sprintf("%.0f", report.Altitude),
-						"heading":        int(report.Heading),
-						"airspeed":       fmt.Sprintf("%.0f", report.Airspeed),
-						"vertical_speed": fmt.Sprintf("%.0f", report.VerticalSpeed),
-						"flaps":          fmt.Sprintf("%.0f", report.Flaps),
-						"trim":           fmt.Sprintf("%.1f", report.Trim),
-						"rudder_trim":    fmt.Sprintf("%.1f", report.RudderTrim),
-					})
-
-					report.RequestData(s)
-				}
-
-			default:
-				fmt.Println("recvInfo.ID unknown", recvInfo.ID)
-			}
-
-			time.Sleep(200 * time.Millisecond)
-		}
-	}()
+	eventSimStartID := simconnect.DWORD(0)
+	//s.SubscribeToSystemEvent(eventSimStartID, "SimStart")
+	//s.SubscribeToFacilities(simconnect.FACILITY_LIST_TYPE_AIRPORT, s.GetDefineID(&simconnect.DataFacilityAirport{}))
+	//s.SubscribeToFacilities(simconnect.FACILITY_LIST_TYPE_WAYPOINT, s.GetDefineID(&simconnect.DataFacilityWaypoint{}))
 
 	go func() {
 		app := func(w http.ResponseWriter, r *http.Request) {
@@ -212,8 +170,94 @@ func main() {
 		}
 	}()
 
+	simconnectTick := time.NewTicker(100 * time.Millisecond)
+	planePositionTick := time.NewTicker(200 * time.Millisecond)
+	trafficPositionTick := time.NewTicker(10000 * time.Millisecond)
+
 	for {
 		select {
+		case <-planePositionTick.C:
+			report.RequestData(s)
+
+		case <-trafficPositionTick.C:
+			//fmt.Println("--------------------------------- REQUEST TRAFFIC --------------")
+			//trafficReport.RequestData(s)
+			//s.RequestFacilitiesList(simconnect.FACILITY_LIST_TYPE_AIRPORT, airportRequestID)
+			//s.RequestFacilitiesList(simconnect.FACILITY_LIST_TYPE_WAYPOINT, waypointRequestID)
+
+		case <-simconnectTick.C:
+			ppData, r1, err := s.GetNextDispatch()
+
+			if r1 < 0 {
+				if uint32(r1) == simconnect.E_FAIL {
+					// skip error, means no new messages?
+					continue
+				} else {
+					panic(fmt.Errorf("GetNextDispatch error: %d %s", r1, err))
+				}
+			}
+
+			recvInfo := *(*simconnect.Recv)(ppData)
+
+			switch recvInfo.ID {
+			case simconnect.RECV_ID_EXCEPTION:
+				recvErr := *(*simconnect.RecvException)(ppData)
+				fmt.Printf("SIMCONNECT_RECV_ID_EXCEPTION %#v\n", recvErr)
+
+			case simconnect.RECV_ID_OPEN:
+				recvOpen := *(*simconnect.RecvOpen)(ppData)
+				fmt.Println("SIMCONNECT_RECV_ID_OPEN", fmt.Sprintf("%s", recvOpen.ApplicationName))
+
+			case simconnect.RECV_ID_EVENT:
+				recvEvent := *(*simconnect.RecvEvent)(ppData)
+				fmt.Println("SIMCONNECT_RECV_ID_EVENT")
+
+				switch recvEvent.EventID {
+				case eventSimStartID:
+					fmt.Println("EVENT: SimStart")
+				default:
+					fmt.Println("unknown SIMCONNECT_RECV_ID_EVENT", recvEvent.EventID)
+				}
+			case simconnect.RECV_ID_WAYPOINT_LIST:
+				waypointList := *(*simconnect.RecvFacilityWaypointList)(ppData)
+				fmt.Printf("SIMCONNECT_RECV_ID_WAYPOINT_LIST %#v\n", waypointList)
+
+			case simconnect.RECV_ID_AIRPORT_LIST:
+				airportList := *(*simconnect.RecvFacilityAirportList)(ppData)
+				fmt.Printf("SIMCONNECT_RECV_ID_AIRPORT_LIST %#v\n", airportList)
+
+			case simconnect.RECV_ID_SIMOBJECT_DATA_BYTYPE:
+				recvData := *(*simconnect.RecvSimobjectDataByType)(ppData)
+
+				switch recvData.RequestID {
+				case s.DefineMap["Report"]:
+					report = (*Report)(ppData)
+
+					if verbose {
+						fmt.Printf("REPORT: %#v\n", report)
+					}
+
+					ws.Broadcast(map[string]interface{}{
+						"type":           "plane",
+						"latitude":       report.Latitude,
+						"longitude":      report.Longitude,
+						"altitude":       fmt.Sprintf("%.0f", report.Altitude),
+						"heading":        int(report.Heading),
+						"airspeed":       fmt.Sprintf("%.0f", report.Airspeed),
+						"vertical_speed": fmt.Sprintf("%.0f", report.VerticalSpeed),
+						"flaps":          fmt.Sprintf("%.0f", report.Flaps),
+						"trim":           fmt.Sprintf("%.1f", report.Trim),
+						"rudder_trim":    fmt.Sprintf("%.1f", report.RudderTrim),
+					})
+
+				case s.DefineMap["TrafficReport"]:
+					trafficReport = (*TrafficReport)(ppData)
+					fmt.Printf("TRAFFIC REPORT: %s\n", trafficReport.Inspect())
+				}
+
+			default:
+				fmt.Println("recvInfo.ID unknown", recvInfo.ID)
+			}
 
 		case <-exitSignal:
 			fmt.Println("exiting..")

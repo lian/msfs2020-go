@@ -22,6 +22,9 @@ var proc_SimConnect_SubscribeToSystemEvent *syscall.LazyProc
 var proc_SimConnect_GetNextDispatch *syscall.LazyProc
 var proc_SimConnect_RequestDataOnSimObjectType *syscall.LazyProc
 var proc_SimConnect_SetDataOnSimObject *syscall.LazyProc
+var proc_SimConnect_SubscribeToFacilities *syscall.LazyProc
+var proc_SimConnect_UnsubscribeToFacilities *syscall.LazyProc
+var proc_SimConnect_RequestFacilitiesList *syscall.LazyProc
 
 type SimConnect struct {
 	handle    unsafe.Pointer
@@ -60,6 +63,9 @@ func New(name string) (*SimConnect, error) {
 		proc_SimConnect_GetNextDispatch = mod.NewProc("SimConnect_GetNextDispatch")
 		proc_SimConnect_RequestDataOnSimObjectType = mod.NewProc("SimConnect_RequestDataOnSimObjectType")
 		proc_SimConnect_SetDataOnSimObject = mod.NewProc("SimConnect_SetDataOnSimObject")
+		proc_SimConnect_SubscribeToFacilities = mod.NewProc("SimConnect_SubscribeToFacilities")
+		proc_SimConnect_UnsubscribeToFacilities = mod.NewProc("SimConnect_UnsubscribeToFacilities")
+		proc_SimConnect_RequestFacilitiesList = mod.NewProc("SimConnect_RequestFacilitiesList")
 	}
 
 	// SimConnect_Open(
@@ -256,6 +262,76 @@ func (s *SimConnect) SetDataOnSimObject(defineID, simobjectType, flags, arrayCou
 		return fmt.Errorf(
 			"SimConnect_SetDataOnSimObject for defineID %d error: %d %s",
 			defineID, r1, err,
+		)
+	}
+
+	return nil
+}
+
+func (s *SimConnect) SubscribeToFacilities(facilityType, requestID DWORD) error {
+	// SimConnect_SubscribeToFacilities(
+	//   HANDLE hSimConnect,
+	//   SIMCONNECT_FACILITY_LIST_TYPE type,
+	//   SIMCONNECT_DATA_REQUEST_ID RequestID
+	// );
+
+	args := []uintptr{
+		uintptr(s.handle),
+		uintptr(facilityType),
+		uintptr(requestID),
+	}
+
+	r1, _, err := proc_SimConnect_SubscribeToFacilities.Call(args...)
+	if int32(r1) < 0 {
+		return fmt.Errorf(
+			"SimConnect_SubscribeToFacilities for type %d error: %d %s",
+			facilityType, r1, err,
+		)
+	}
+
+	return nil
+}
+
+func (s *SimConnect) UnsubscribeToFacilities(facilityType DWORD) error {
+	// SimConnect_UnsubscribeToFacilities(
+	//   HANDLE hSimConnect,
+	//   SIMCONNECT_FACILITY_LIST_TYPE type
+	// );
+
+	args := []uintptr{
+		uintptr(s.handle),
+		uintptr(facilityType),
+	}
+
+	r1, _, err := proc_SimConnect_UnsubscribeToFacilities.Call(args...)
+	if int32(r1) < 0 {
+		return fmt.Errorf(
+			"UnsubscribeToFacilities for type %d error: %d %s",
+			facilityType, r1, err,
+		)
+	}
+
+	return nil
+}
+
+func (s *SimConnect) RequestFacilitiesList(facilityType, requestID DWORD) error {
+	// SimConnect_RequestFacilitiesList(
+	//   HANDLE hSimConnect,
+	//   SIMCONNECT_FACILITY_LIST_TYPE type,
+	//   SIMCONNECT_DATA_REQUEST_ID RequestID
+	// );
+
+	args := []uintptr{
+		uintptr(s.handle),
+		uintptr(facilityType),
+		uintptr(requestID),
+	}
+
+	r1, _, err := proc_SimConnect_RequestFacilitiesList.Call(args...)
+	if int32(r1) < 0 {
+		return fmt.Errorf(
+			"SimConnect_RequestFacilitiesList for type %d error: %d %s",
+			facilityType, r1, err,
 		)
 	}
 
