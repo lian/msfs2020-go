@@ -3,4 +3,6 @@ build-vfrmap-upload.sh
 vfrmap.exe
 vfrmap-win64.zip
 request_data.exe
+SimConnect.dll
+push.sh
 _vendor
