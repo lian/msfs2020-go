@@ -164,7 +164,13 @@
           format: "image/png",
           subdomains: ["a", "b", "c"]
         });
-
+        var carto_dark = new L.TileLayer("https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png", {
+          maxZoom: 18,
+          minZoom: 2,
+          format: "image/png",
+          subdomains: ["a", "b", "c"]
+        });
+        
         map = new L.Map("map", {
           layers: [ osm ],
           center: pos,
@@ -175,7 +181,9 @@
         var attrib = L.control.attribution({position: "bottomleft"});
         attrib.addAttribution("<a href=\"https://www.openaip.net\" target=\"_blank\" style=\"\">openAIP</a>");
         attrib.addAttribution("<a href=\"http://maps.stamen.com\" target=\"_blank\" style=\"\">Stamen</a>");
+        attrib.addAttribution("<a href=\"https://carto.com/\" target=\"_blank\" style=\"\">Carto</a>");
         attrib.addAttribution("<a href=\"https://www.openstreetmap.org/copyright\" target=\"_blank\" style=\"\">© OpenStreetMap</a> contributors");
+        
         attrib.addTo(map);
 
         var baseMaps = {
@@ -183,6 +191,7 @@
             "Stamen Terrain": stamen_terrain,
             "Stamen Toner": stamen_black_white,
             "Stamen Water": stamen_water,
+            "Carto Dark (Night Mode)": carto_dark,
         };
      
         var overlayMaps = {
