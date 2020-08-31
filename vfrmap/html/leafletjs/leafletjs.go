@@ -35,8 +35,5 @@ func (_ FS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "images/marker-shadow.png":
 		w.Header().Set("Content-Type", "image/png")
 		w.Write(MustAsset("images/marker-shadow.png"))
-	case "images/plane.png":
-		w.Header().Set("Content-Type", "image/png")
-		w.Write(MustAsset("images/plane.png"))
 	}
 }
