@@ -33,6 +33,37 @@ const (
 	DATATYPE_MAX // enum limit
 )
 
+const (
+	TEXT_TYPE_SCROLL_BLACK DWORD = iota
+	TEXT_TYPE_SCROLL_WHITE
+	TEXT_TYPE_SCROLL_RED
+	TEXT_TYPE_SCROLL_GREEN
+	TEXT_TYPE_SCROLL_BLUE
+	TEXT_TYPE_SCROLL_YELLOW
+	TEXT_TYPE_SCROLL_MAGENTA
+	TEXT_TYPE_SCROLL_CYAN
+)
+
+const (
+	TEXT_TYPE_PRINT_BLACK DWORD = iota + 0x0100
+	TEXT_TYPE_PRINT_WHITE
+	TEXT_TYPE_PRINT_RED
+	TEXT_TYPE_PRINT_GREEN
+	TEXT_TYPE_PRINT_BLUE
+	TEXT_TYPE_PRINT_YELLOW
+	TEXT_TYPE_PRINT_MAGENTA
+	TEXT_TYPE_PRINT_CYAN
+)
+
+const TEXT_TYPE_MENU DWORD = 0x0200
+
+// Notification Group priority values
+const GROUP_PRIORITY_HIGHEST DWORD = 1                 // highest priority
+const GROUP_PRIORITY_HIGHEST_MASKABLE DWORD = 10000000 // highest priority that allows events to be masked
+const GROUP_PRIORITY_STANDARD DWORD = 1900000000       // standard priority
+const GROUP_PRIORITY_DEFAULT DWORD = 2000000000        // default priority
+const GROUP_PRIORITY_LOWEST DWORD = 4000000000         // priorities lower than this will be ignored
+
 func derefDataType(fieldType string) (DWORD, error) {
 	var dataType DWORD
 	switch fieldType {

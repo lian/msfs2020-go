@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -74,9 +73,9 @@ func (c *Connection) readPump() {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
-				log.Printf("error: %v", err)
+				//log.Printf("error: %v", err)
 			}
-			log.Printf("error: %v", err)
+			//log.Printf("error: %v", err)
 			break
 		}
 		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))

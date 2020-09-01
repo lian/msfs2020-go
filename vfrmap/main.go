@@ -91,20 +91,15 @@ func (r *TeleportRequest) SetData(s *simconnect.SimConnect) {
 var buildVersion string
 var buildTime string
 
-var showVersion bool
 var verbose bool
 var httpListen string
 
 func main() {
-	flag.BoolVar(&showVersion, "v", false, "version")
 	flag.BoolVar(&verbose, "verbose", false, "verbose output")
 	flag.StringVar(&httpListen, "listen", "0.0.0.0:9000", "http listen")
 	flag.Parse()
 
-	if showVersion {
-		fmt.Printf("version: %s (%s)\n", buildVersion, buildTime)
-		return
-	}
+	fmt.Printf("\nmsfs2020-go/vfrmap\n  readme: https://github.com/lian/msfs2020-go/blob/master/vfrmap/README.md\n  issues: https://github.com/lian/msfs2020-go/issues\n  version: %s (%s)\n\n", buildVersion, buildTime)
 
 	exitSignal := make(chan os.Signal, 1)
 	signal.Notify(exitSignal, os.Interrupt, syscall.SIGTERM)
@@ -112,11 +107,11 @@ func main() {
 
 	ws := websockets.New()
 
-	s, err := simconnect.New("VFR Map")
+	s, err := simconnect.New("msfs2020-go/vfrmap")
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("Connected to Flight Simulator!")
+	fmt.Println("connected to flight simulator!")
 
 	report := &Report{}
 	err = s.RegisterDataDefinition(report)
@@ -136,10 +131,13 @@ func main() {
 		panic(err)
 	}
 
-	eventSimStartID := simconnect.DWORD(0)
+	eventSimStartID := s.GetEventID()
 	//s.SubscribeToSystemEvent(eventSimStartID, "SimStart")
 	//s.SubscribeToFacilities(simconnect.FACILITY_LIST_TYPE_AIRPORT, s.GetDefineID(&simconnect.DataFacilityAirport{}))
 	//s.SubscribeToFacilities(simconnect.FACILITY_LIST_TYPE_WAYPOINT, s.GetDefineID(&simconnect.DataFacilityWaypoint{}))
+
+	startupTextEventID := s.GetEventID()
+	s.ShowText(simconnect.TEXT_TYPE_PRINT_WHITE, 15, startupTextEventID, "msfs2020-go/vfrmap connected")
 
 	go func() {
 		app := func(w http.ResponseWriter, r *http.Request) {
@@ -206,15 +204,27 @@ func main() {
 
 			case simconnect.RECV_ID_OPEN:
 				recvOpen := *(*simconnect.RecvOpen)(ppData)
-				fmt.Println("SIMCONNECT_RECV_ID_OPEN", fmt.Sprintf("%s", recvOpen.ApplicationName))
+				fmt.Printf(
+					"\nflight simulator info:\n  codename: %s\n  version: %d.%d (%d.%d)\n  simconnect: %d.%d (%d.%d)\n\n",
+					recvOpen.ApplicationName,
+					recvOpen.ApplicationVersionMajor,
+					recvOpen.ApplicationVersionMinor,
+					recvOpen.ApplicationBuildMajor,
+					recvOpen.ApplicationBuildMinor,
+					recvOpen.SimConnectVersionMajor,
+					recvOpen.SimConnectVersionMinor,
+					recvOpen.SimConnectBuildMajor,
+					recvOpen.SimConnectBuildMinor,
+				)
 
 			case simconnect.RECV_ID_EVENT:
 				recvEvent := *(*simconnect.RecvEvent)(ppData)
-				fmt.Println("SIMCONNECT_RECV_ID_EVENT")
 
 				switch recvEvent.EventID {
 				case eventSimStartID:
 					fmt.Println("EVENT: SimStart")
+				case startupTextEventID:
+					// ignore
 				default:
 					fmt.Println("unknown SIMCONNECT_RECV_ID_EVENT", recvEvent.EventID)
 				}
