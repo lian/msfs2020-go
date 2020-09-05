@@ -238,9 +238,16 @@
         markerTeleport.bindPopup(L.popup({autoPan: false}).setContent(teleport_popup.main));
         set_teleport_marker(markerPos);
 
+
+        map.on('dragstart', function(e) {
+          follow_plane = true
+          toggle_follow();
+        });
+
         map.on('click', function(e) {
           set_teleport_marker(e.latlng);
         });
+
         map.on('baselayerchange', function(e) {
           if (e.name == "Carto Dark (Night Mode)") {
             marker.setIcon(planeIconWhite);
