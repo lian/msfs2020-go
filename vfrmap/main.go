@@ -90,6 +90,7 @@ func (r *TeleportRequest) SetData(s *simconnect.SimConnect) {
 
 var buildVersion string
 var buildTime string
+var disableTeleport bool
 
 var verbose bool
 var httpListen string
@@ -97,6 +98,7 @@ var httpListen string
 func main() {
 	flag.BoolVar(&verbose, "verbose", false, "verbose output")
 	flag.StringVar(&httpListen, "listen", "0.0.0.0:9000", "http listen")
+	flag.BoolVar(&disableTeleport, "disable-teleport", false, "disable teleport")
 	flag.Parse()
 
 	fmt.Printf("\nmsfs2020-go/vfrmap\n  readme: https://github.com/lian/msfs2020-go/blob/master/vfrmap/README.md\n  issues: https://github.com/lian/msfs2020-go/issues\n  version: %s (%s)\n\n", buildVersion, buildTime)
@@ -288,16 +290,39 @@ func main() {
 func handleClientMessage(m websockets.ReceiveMessage, s *simconnect.SimConnect) {
 	var pkt map[string]interface{}
 	if err := json.Unmarshal(m.Message, &pkt); err != nil {
-		fmt.Println(err)
+		fmt.Println("invalid websocket packet", err)
 	} else {
-		switch pkt["type"].(string) {
+		pktType, ok := pkt["type"].(string)
+		if !ok {
+			fmt.Println("invalid websocket packet", pkt)
+			return
+		}
+		switch pktType {
 		case "teleport":
-			//fmt.Println("teleport request", pkt)
-			r := &TeleportRequest{
-				Latitude:  pkt["lat"].(float64),
-				Longitude: pkt["lng"].(float64),
-				Altitude:  pkt["altitude"].(float64),
+			if disableTeleport {
+				fmt.Println("teleport disabled", pkt)
+				return
 			}
+
+			// validate user input
+			lat, ok := pkt["lat"].(float64)
+			if !ok {
+				fmt.Println("invalid websocket packet", pkt)
+				return
+			}
+			lng, ok := pkt["lng"].(float64)
+			if !ok {
+				fmt.Println("invalid websocket packet", pkt)
+				return
+			}
+			altitude, ok := pkt["altitude"].(float64)
+			if !ok {
+				fmt.Println("invalid websocket packet", pkt)
+				return
+			}
+
+			// teleport
+			r := &TeleportRequest{Latitude: lat, Longitude: lng, Altitude: altitude}
 			r.SetData(s)
 		}
 	}
