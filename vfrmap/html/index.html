@@ -26,16 +26,20 @@
         flex-grow: 1;
       }
 
-      #load-map {
+      #hide-hud {
         position: absolute;
-        bottom: 0;
+        top: 0;
         left: 0;
         z-index: 14;
         padding: 0.5em;
         color: black;
-        background-color: red;
-        font-size: 2em;
+        font-size: 1em;
         font-weight: bold;
+        color: black;
+        cursor: pointer;
+      }
+      #hide-hud:hover {
+        color: white;
       }
 
       #hud {
@@ -46,9 +50,15 @@
         background-color: black;
       }
 
-      #hud span.value {
+      #hud span.field {
         padding-right: 0.5em;
+      }
+      #hud span.value {
         font-size: 2.0em;
+      }
+      #hud span.value_small {
+        font-size: 1.0em;
+        padding-left: 0.1em;
       }
       #teleport-popup p {
         padding:0.2em;
@@ -118,6 +128,7 @@
         hud.heading.innerText = msg.heading;
         hud.airspeed.innerText = msg.airspeed;
         hud.vertical_speed.innerText = msg.vertical_speed;
+        hud.airspeed_true.innerText = "(" + msg.airspeed_true + ")";
         hud.flaps.innerText = msg.flaps;
         hud.trim.innerText = msg.trim;
         hud.rudder_trim.innerText = msg.rudder_trim;
@@ -193,10 +204,10 @@
         });
 
         var attrib = L.control.attribution({position: "bottomleft"});
+        attrib.addAttribution("<a href=\"https://www.openstreetmap.org/copyright\" target=\"_blank\" style=\"\">OpenStreetMap</a>");
         attrib.addAttribution("<a href=\"https://www.openaip.net\" target=\"_blank\" style=\"\">openAIP</a>");
         attrib.addAttribution("<a href=\"http://maps.stamen.com\" target=\"_blank\" style=\"\">Stamen</a>");
         attrib.addAttribution("<a href=\"https://carto.com/\" target=\"_blank\" style=\"\">Carto</a>");
-        attrib.addAttribution("<a href=\"https://www.openstreetmap.org/copyright\" target=\"_blank\" style=\"\">© OpenStreetMap</a> contributors");
         
         attrib.addTo(map);
 
@@ -272,6 +283,13 @@
         follow_plane = !follow_plane;
       }
 
+      function hide_hud() {
+         var hud = document.getElementById("hud");
+         hud.style.display = "none";
+         hud = document.getElementById("hide-hud");
+         hud.style.display = "none";
+      }
+
       document.addEventListener("DOMContentLoaded", function(event) {
         plane_popup = {
           main: document.getElementById("plane-popup"),
@@ -289,6 +307,7 @@
           altitude: document.getElementById("altitude_value"),
           heading: document.getElementById("heading_value"),
           airspeed: document.getElementById("airspeed_value"),
+          airspeed_true: document.getElementById("airspeed_true_value"),
           vertical_speed: document.getElementById("vertical_speed_value"),
           flaps: document.getElementById("flaps_value"),
           trim: document.getElementById("trim_value"),
@@ -302,17 +321,19 @@
   </head>
   <body>
     <div id="hud">
-      <span>Airspeed: <span id="airspeed_value" class="value">0</span></span>
-      <span>Altitude: <span id="altitude_value" class="value">0</span></span>
-      <span>Heading: <span id="heading_value" class="value">0</span></span>
-      <span>V.Speed: <span id="vertical_speed_value" class="value">0</span></span>
-      <span>Flaps: <span id="flaps_value" class="value">0</span></span>
-      <span>Trim: <span id="trim_value" class="value">0</span></span>
-      <span>R.Trim: <span id="rudder_trim_value" class="value">0</span></span>
+      <span class="field">Airspeed: <span id="airspeed_value" class="value">0</span><span id="airspeed_true_value" class="value_small">0</span> </span>
+      <span class="field">Altitude: <span id="altitude_value" class="value">0</span></span>
+      <span class="field">Heading: <span id="heading_value" class="value">0</span></span>
+      <span class="field">V.Speed: <span id="vertical_speed_value" class="value">0</span></span>
+      <span class="field">Flaps: <span id="flaps_value" class="value">0</span></span>
+      <span class="field">Trim: <span id="trim_value" class="value">0</span></span>
+      <span class="field">R.Trim: <span id="rudder_trim_value" class="value">0</span></span>
     </div>
-    <div id="map"></div>
-    <div style="display:none;">
+    <span id="hide-hud" onclick="hide_hud();">hide hud</span>
 
+    <div id="map"></div>
+
+    <div style="display:none;">
       <div id="plane-popup">
         <p><h3 id="plane-popup-pos"></h3></p>
         <p><button id="plane-popup-gmap" onclick="open_in_google_maps();">open in google maps</button></p>

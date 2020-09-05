@@ -29,6 +29,7 @@ type Report struct {
 	Longitude     float64   `name:"PLANE LONGITUDE" unit:"degrees"`
 	Heading       float64   `name:"PLANE HEADING DEGREES TRUE" unit:"degrees"`
 	Airspeed      float64   `name:"AIRSPEED INDICATED" unit:"knot"`
+	AirspeedTrue  float64   `name:"AIRSPEED TRUE" unit:"knot"`
 	VerticalSpeed float64   `name:"VERTICAL SPEED" unit:"ft/min"`
 	Flaps         float64   `name:"TRAILING EDGE FLAPS LEFT ANGLE" unit:"degrees"`
 	Trim          float64   `name:"ELEVATOR TRIM PCT" unit:"percent"`
@@ -256,6 +257,7 @@ func main() {
 						"altitude":       fmt.Sprintf("%.0f", report.Altitude),
 						"heading":        int(report.Heading),
 						"airspeed":       fmt.Sprintf("%.0f", report.Airspeed),
+						"airspeed_true":  fmt.Sprintf("%.0f", report.AirspeedTrue),
 						"vertical_speed": fmt.Sprintf("%.0f", report.VerticalSpeed),
 						"flaps":          fmt.Sprintf("%.0f", report.Flaps),
 						"trim":           fmt.Sprintf("%.1f", report.Trim),
