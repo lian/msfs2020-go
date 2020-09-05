@@ -8,9 +8,9 @@ cross-compiles from macos/linux, no other dependencies required. produces a sing
 
 [msfs2020-go/simconnect](simconnect/) package currently only implements enough of the simconnect api for [examples](examples/) and [vfrmap](vfrmap).
 
-## download
+## releases and download
 
-program zips are uploaded [here](https://github.com/lian/msfs2020-go/releases)
+program zips releases are uploaded [here](https://github.com/lian/msfs2020-go/releases)
 
 ## tools
 

@@ -18,14 +18,15 @@ also allows you to quickly teleport your plane to any location.
 
 * `-v` show program version
 * `-verbose` verbose output
+* `-disable-teleport` disables teleport
 
 ## usage
 
-click on your plane to see gps coordinates, follow or don't follow the plane, or open the current location on google maps in a new tab.
-
-if you click on the map itself a new marker appears. clicking on that marker allows you to teleport to this location or enter your own gps coordinates.
-
-esc key switching between following the plane or freely moving around on the map.
+* clicking on your plane to see gps coordinates, follow or don't follow the plane, or open the current location on google maps in a new tab.
+* clicking on the map itself to create a marker. clicking on that marker allows you to teleport to this location or enter your own gps coordinates.
+* dragging the map stops following the plane.
+* pressing escape key switches between following the plane or freely moving around on the map.
+* clicking on the top right corner hides the HUD
 
 ## change visualisation
 
@@ -47,4 +48,8 @@ From official golang website https://golang.org/doc/faq#virus
 
 ## screenshots
 
+![screenshot](https://i.imgur.com/n9vHln8.png)
+![osm with openAIP](https://s3.eu-central-1.amazonaws.com/sh4re/2020-08-26_19_37_05_scrot.png)
+![stamen watercolor with openAIP](https://s3.eu-central-1.amazonaws.com/sh4re/2020-08-26_19_36_03_scrot.png)
+![stamen toner](https://s3.eu-central-1.amazonaws.com/sh4re/2020-08-26_19_37_32_scrot.png)
 ![screenshot](https://i.imgur.com/5PZyKC8.png)
